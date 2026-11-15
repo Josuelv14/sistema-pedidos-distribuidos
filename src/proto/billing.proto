@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package billing;
+
+service BillingService {
+  rpc ProcessPayment (PaymentRequest) returns (PaymentResponse);
+  rpc GetSalesSummary (SalesSummaryRequest) returns (SalesSummaryResponse);
+}
+
+message PaymentRequest {
+  string order_id = 1;
+  string total = 2;
+}
+
+message PaymentResponse {
+  string order_id = 1;
+  bool approved = 2;
+  string invoice_id = 3;
+  string total = 4;
+}
+
+message SalesSummaryRequest {}
+
+message SalesSummaryResponse {
+  int32 sales_count = 1;
+  string total_revenue = 2;
+}
