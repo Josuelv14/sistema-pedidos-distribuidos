@@ -182,8 +182,13 @@ el personal terminó de prepararlo, llama:
 Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/orders/ABC12345/ready"
 ```
 
-Esto usa `READY_ORDER` por TCP y cambia el estado a `READY` en REST. La emisión
-al estudiante por WebSockets queda a cargo del integrante 4.
+Esto usa `READY_ORDER` por TCP y cambia el estado a `READY` en REST.
+El estudiante puede abrir `ws://127.0.0.1:8000/ws/orders/{order_id}` para
+seguir su pedido. Al conectarse, recibe `order_status` con el estado actual.
+Si el pedido queda listo mientras la conexión está abierta, recibe
+`order_ready`. Si se reconecta después, recibe `order_status` con `READY`.
+
+Consulta los pasos y resultados en la [prueba de WebSockets](docs/prueba-websockets.md).
 
 Si cocina está detenida cuando se crea un pedido, REST responde `503` **después
 de cobrarlo**, pero conserva el pedido como `PAID`. Al reiniciar cocina:
