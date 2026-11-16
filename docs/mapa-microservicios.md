@@ -8,12 +8,12 @@ flowchart LR
     cocina[Cocina - pendiente]
     notificaciones[Notificaciones - pendiente]
 
-    estudiante -->|HTTP / JSON| pedidos
-    pedidos -->|gRPC: ID y total| caja
-    caja -->|gRPC: aprobación y comprobante| pedidos
-    pedidos -.->|Sockets TCP: integración pendiente| cocina
+    estudiante -->|REST síncrono: HTTP / JSON| pedidos
+    pedidos -->|gRPC síncrono: ID y total| caja
+    caja -->|Respuesta gRPC: aprobación y comprobante| pedidos
+    pedidos -.->|TCP: interacción pendiente de definir| cocina
     cocina -.->|Pedido listo: enlace pendiente de definir| notificaciones
-    notificaciones -.->|WebSockets: integración pendiente| estudiante
+    notificaciones -.->|WebSockets asíncrono: integración pendiente| estudiante
 ```
 
 | Servicio | Responsabilidad | Implementación |
@@ -26,6 +26,20 @@ flowchart LR
 Pedidos y caja se ejecutan como procesos separados. Cada uno mantiene sus datos
 en memoria; no comparten una base de datos. `src/services/billing_client.py`
 es el cliente que pedidos utiliza para llamar a caja.
+
+## Tipo de comunicación
+
+| Comunicación | Mecanismo | Tipo y estado |
+| --- | --- | --- |
+| Estudiante a pedidos | REST | Síncrona: el cliente espera la respuesta HTTP. Implementada. |
+| Pedidos a caja | gRPC unario | Síncrona: pedidos espera la respuesta de caja, con un plazo de dos segundos. Implementada. |
+| Pedidos a cocina | Sockets TCP | Pendiente de integración. El integrante 3 debe definir si se espera una respuesta o se procesa sin bloquear al emisor. |
+| Cocina a notificaciones | Por definir | Mecanismo y tipo pendientes de acordar entre integrantes 3 y 4. |
+| Notificaciones al estudiante | WebSockets | Asíncrona en el diseño: el servidor enviará el aviso cuando el pedido esté listo. Pendiente de implementación. |
+
+TCP y WebSockets permiten distintos patrones de intercambio; el carácter
+síncrono o asíncrono depende de cómo se usen en el flujo. Las flechas punteadas
+representan integraciones pendientes.
 
 ## Flujo implementado
 

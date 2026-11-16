@@ -146,6 +146,7 @@ with grpc.insecure_channel("127.0.0.1:50051") as channel:
 - [ADR de REST](docs/adr-001-rest.md)
 - [ADR de gRPC](docs/adr-002-grpc.md)
 - [Mapa de microservicios](docs/mapa-microservicios.md)
+- [Prueba de caja no disponible](docs/prueba-grpc.md)
 
 ## Diagrama de Contexto C4 — Nivel 1
 
