@@ -92,19 +92,3 @@ sin duplicar ventas están comprobados en las pruebas automatizadas de
 ```powershell
 python -m unittest discover -s tests -v
 ```
-
-## Conceptos para explicar en la defensa
-
-- La llamada gRPC es un RPC síncrono: pedidos espera la respuesta de otro proceso.
-- El fallo de caja es un fallo parcial del sistema distribuido. REST sigue
-  atendiendo y traduce el error gRPC a una respuesta HTTP `503`.
-- El plazo de dos segundos limita la espera de la llamada. No se interpreta
-  una falta de respuesta como un pago aprobado.
-- El reintento usa el mismo ID del pedido. Caja conserva el comprobante por ID
-  para evitar ventas repetidas mientras su proceso permanece activo.
-- Los datos están en memoria. Reiniciar caja pierde su registro de ventas;
-  esta prueba demuestra recuperación de un pedido que no se había cobrado,
-  no persistencia de pagos anteriores ni tolerancia completa a reinicios.
-
-El integrante debe revisar este registro y explicar el resultado con los
-conceptos del capítulo antes de usarlo en la entrega.
