@@ -1,8 +1,17 @@
+import asyncio
 from typing import Annotated
 
 import grpc
-from fastapi import FastAPI, Header, HTTPException, status
-
+from fastapi import (
+    FastAPI,
+    Header,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
+from starlette.concurrency import run_in_threadpool
+from src.services.order_notifications import OrderNotifications
 from src.models import Order, OrderCreate, OrderStatus, OrderStatusUpdate
 from src.services.billing_client import BillingClient
 from src.services.orders import IdempotencyConflictError, OrdersService
@@ -12,6 +21,7 @@ from src.services.kitchen_client import (
 
 app = FastAPI(title="Sistema de pedidos", version="1.0.0")
 orders_service = OrdersService()
+order_notifications = OrderNotifications()
 billing_client = BillingClient()
 kitchen_client = KitchenClient()  # Integracion TCP asistida por IA; ver bitacora.
 
@@ -105,8 +115,9 @@ def retry_kitchen_dispatch(order_id: str) -> Order:
     return dispatch_to_kitchen(order)
 
 
+# Integración de notificaciones sugerida con ayuda de IA.
 @app.post("/orders/{order_id}/ready", response_model=Order)
-def mark_order_ready(order_id: str) -> Order:
+async def mark_order_ready(order_id: str) -> Order:
     """Accion simulada del personal de cocina al terminar la preparacion."""
     order = orders_service.get_order(order_id)
     if order is None:
@@ -114,15 +125,25 @@ def mark_order_ready(order_id: str) -> Order:
     if order.status == OrderStatus.READY:
         return order
     if order.status != OrderStatus.PREPARING:
-        raise HTTPException(status_code=409, detail="El pedido no esta en preparacion")
+        raise HTTPException(
+            status_code=409, detail="El pedido no esta en preparacion"
+        )
+
     try:
-        kitchen_client.mark_ready(order.id)
+        await run_in_threadpool(kitchen_client.mark_ready, order.id)
     except KitchenUnavailableError as exc:
         raise HTTPException(status_code=503, detail="Cocina no responde") from exc
     except (KitchenRejectedError, KitchenProtocolError) as exc:
-        raise HTTPException(status_code=502, detail=f"No se pudo marcar listo: {exc}") from exc
-    return orders_service.update_status(order.id, OrderStatus.READY)
+        raise HTTPException(
+            status_code=502, detail=f"No se pudo marcar listo: {exc}"
+        ) from exc
 
+    updated_order = orders_service.update_status(order.id, OrderStatus.READY)
+    if updated_order is None:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    order_notifications.notify_ready(order.id)
+    return updated_order
 
 @app.get("/orders/", response_model=list[Order])
 def list_orders() -> list[Order]:
@@ -138,10 +159,73 @@ def get_order(order_id: str) -> Order:
     return order
 
 @app.patch("/orders/{order_id}/status", response_model=Order)
-def update_order_status(order_id: str, update: OrderStatusUpdate) -> Order:
+async def update_order_status(order_id: str, update: OrderStatusUpdate) -> Order:
     order = orders_service.update_status(order_id, update.status)
     if order is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado"
         )
+
+    if order.model_dump(mode="json")["status"] == "READY":
+        order_notifications.notify_ready(order_id)
+
     return order
+
+
+@app.websocket("/ws/orders/{order_id}")
+async def watch_order(websocket: WebSocket, order_id: str) -> None:
+    await websocket.accept()
+    ready = order_notifications.subscribe(order_id)
+    tasks: list[asyncio.Task[None]] = []
+
+    async def send_ready() -> None:
+        await ready.wait()
+        await websocket.send_json({
+            "type": "order_ready",
+            "order_id": order_id,
+            "status": OrderStatus.READY.value,
+        })
+
+    async def wait_for_disconnect() -> None:
+        while True:
+            message = await websocket.receive()
+            if message["type"] == "websocket.disconnect":
+                return
+
+    try:
+        order = orders_service.get_order(order_id)
+        if order is None:
+            await websocket.close(code=1008, reason="Pedido no encontrado")
+            return
+
+        await websocket.send_json({
+            "type": "order_status",
+            "order_id": order_id,
+            "status": order.status.value,
+        })
+
+        if order.status == OrderStatus.READY:
+            await websocket.close()
+            return
+
+        sender = asyncio.create_task(send_ready())
+        receiver = asyncio.create_task(wait_for_disconnect())
+        tasks.extend((sender, receiver))
+
+        done, _ = await asyncio.wait(
+            tasks, return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in done:
+            task.result()
+
+        if sender in done and receiver not in done:
+            await websocket.close()
+    except (WebSocketDisconnect, OSError):
+        pass
+    finally:
+        for task in tasks:
+            task.cancel()
+        try:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        finally:
+            order_notifications.unsubscribe(order_id, ready)
