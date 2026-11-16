@@ -9,6 +9,7 @@ from src import main
 from src.billing_server import BillingServicer
 from src.models import OrderCreate, OrderStatus
 from src.proto import billing_pb2, billing_pb2_grpc
+from src.services import orders
 from src.services.billing_client import BillingClient
 from src.services.orders import OrdersService
 
@@ -72,11 +73,14 @@ class BillingTests(unittest.TestCase):
     def test_orders_use_grpc_and_become_paid(self):
         orders = OrdersService()
         data = OrderCreate(product="Cafe", quantity=2, unit_price="3.50")
-        with patch.object(main, "orders_service", orders), patch.object(
-            main, "billing_client", self.client
-        ):
+
+        with patch.object(main, "orders_service", orders), \
+            patch.object(main, "billing_client", self.client), \
+            patch.object(main, "dispatch_to_kitchen", side_effect=lambda order: order):
+
             first = main.create_order(data, "pedido-1")
             second = main.create_order(data, "pedido-1")
+
             self.assertEqual(first.status, OrderStatus.PAID)
             self.assertEqual(first.id, second.id)
             self.assertEqual(self.summary().sales_count, 1)
@@ -85,9 +89,9 @@ class BillingTests(unittest.TestCase):
         orders = OrdersService()
         data = OrderCreate(product="Cafe", quantity=2, unit_price="3.50")
         self.server.stop(0).wait()
-        with patch.object(main, "orders_service", orders), patch.object(
-            main, "billing_client", self.client
-        ):
+        with patch.object(main, "orders_service", orders), \
+            patch.object(main, "billing_client", self.client), \
+            patch.object(main, "dispatch_to_kitchen", side_effect=lambda order: order):
             with self.assertRaises(HTTPException) as result:
                 main.create_order(data, "pedido-1")
             self.assertEqual(result.exception.status_code, 503)
