@@ -159,3 +159,55 @@ C4Context
 
     Rel(cliente, sistema, "Gestiona pedidos", "HTTPS/JSON")
 ```
+
+
+## Cocina con Sockets TCP (Integrante 3; implementación asistida por IA)
+
+En una tercera terminal con el entorno virtual activado, inicia cocina:
+
+```powershell
+python -m src.kitchen_server
+```
+
+Cocina escucha en `127.0.0.1:50052`. Inicia los tres procesos por separado:
+**caja**, **cocina** y **REST**. Luego crea un pedido en
+<http://127.0.0.1:8000/docs> con encabezado `X-Idempotency-Key` nuevo.
+
+El flujo REST → gRPC → TCP registra el pago y recibe confirmación de cocina;
+con todos los servicios activos el pedido pasa a `PREPARING`. Para simular que
+el personal terminó de prepararlo, llama:
+
+```powershell
+# Cambia ABC12345 por el ID obtenido al crear tu pedido.
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/orders/ABC12345/ready"
+```
+
+Esto usa `READY_ORDER` por TCP y cambia el estado a `READY` en REST. La emisión
+al estudiante por WebSockets queda a cargo del integrante 4.
+
+Si cocina está detenida cuando se crea un pedido, REST responde `503` **después
+de cobrarlo**, pero conserva el pedido como `PAID`. Al reiniciar cocina:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/orders/ABC12345/dispatch"
+```
+
+El mismo endpoint permite resubir un pedido `PREPARING` si cocina se reinició.
+Un reintento con el mismo ID no genera un segundo pedido en cocina; un ID
+reutilizado con otro producto o cantidad es rechazado.
+
+> Limitaciones: los datos se almacenan en memoria y se pierden al reiniciar;
+> el cambio manual mediante `PATCH /orders/{id}/status` puede omitir la cocina.
+> Para la demostración del flujo completo, utiliza `POST /orders/{id}/ready`.
+
+### Pruebas TCP
+
+```powershell
+python -m unittest discover -s tests -p "test_kitchen_tcp.py" -v
+```
+
+Estas pruebas levantan un servidor TCP temporal y simulan la aprobación de pago
+para verificar la integración. No reemplazan la demostración en vivo con caja
+real. Ver [ADR de TCP](docs/adr-003-sockets-tcp.md),
+[pruebas de TCP](docs/prueba-tcp.md) y
+[bitácora de IA](docs/bitacora-ia-esteban.md).
