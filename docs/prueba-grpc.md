@@ -5,9 +5,9 @@
 Comprobar que pedidos responde de forma controlada cuando el servicio interno
 de caja no está disponible y permite completar el pago al recuperar el servicio.
 
-## Escenario de calidad propuesto: disponibilidad
+## Escenario de calidad: disponibilidad
 
-Este escenario debe incorporarse y priorizarse con los escenarios del grupo.
+Corresponde al escenario 2 de [escenarios de calidad](escenarios-calidad.md).
 
 | Elemento | Descripción |
 | --- | --- |

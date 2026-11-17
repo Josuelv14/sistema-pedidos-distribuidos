@@ -143,6 +143,7 @@ with grpc.insecure_channel("127.0.0.1:50051") as channel:
 
 ## Documentación
 
+- [Escenarios de calidad priorizados](docs/escenarios-calidad.md)
 - [ADR de REST](docs/adr-001-rest.md)
 - [ADR de gRPC](docs/adr-002-grpc.md)
 - [Mapa de microservicios](docs/mapa-microservicios.md)

@@ -3,6 +3,7 @@
 Pruebas elaboradas con asistencia de IA. Ejecutar y documentar resultados reales.
 """
 
+import asyncio
 import json
 import socket
 import threading
@@ -129,7 +130,7 @@ class KitchenApiIntegrationTests(unittest.TestCase):
         same = self.api.create_order(request, "key-test-08")
         self.assertEqual(same.id, created.id)
         self.assertEqual(self.payment_mock.call_count, 1)
-        completed = self.api.mark_order_ready(created.id)
+        completed = asyncio.run(self.api.mark_order_ready(created.id))
         self.assertEqual(completed.status, OrderStatus.READY)
 
     def test_09_fallo_cocina_conserva_pago_y_permita_reintento(self):

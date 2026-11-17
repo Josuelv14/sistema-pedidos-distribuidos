@@ -1,3 +1,4 @@
+# Pruebas de caja y comunicación gRPC elaboradas con asistencia de IA.
 import unittest
 from concurrent import futures
 from unittest.mock import patch

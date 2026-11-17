@@ -1,17 +1,17 @@
 # ADR-003 — Sockets TCP entre pedidos y cocina
 
-**Estado:** Borrador para aprobación y adaptación por el grupo.
-**Responsable de revisión:** Integrante 3 (cocina).
-**Asistencia de IA:** Estructura y redacción preliminar propuestas por ChatGPT. Deben registrarse y justificarse.
+**Estado:** Aceptado e implementado.
+**Responsable:** Integrante 3 (cocina).
+**Asistencia de IA:** Estructura y redacción elaboradas con asistencia de ChatGPT.
 
 ## Contexto
 
 La API REST crea el pedido y caja procesa el pago por gRPC. La cocina debe recibir
 las órdenes pagadas, procesarlas y confirmar su estado. Este mecanismo es el
 tercero de los cuatro definidos por el grupo y debe funcionar dentro del flujo
-REST → gRPC → Sockets TCP → futura notificación WebSockets.
+REST → gRPC → Sockets TCP → notificación WebSockets.
 
-## Decisión propuesta
+## Decisión implementada
 
 Se usa un servidor Python con `socketserver.ThreadingTCPServer` en
 `127.0.0.1:50052`. El servicio de pedidos utiliza un cliente `socket` para
@@ -24,7 +24,7 @@ Operaciones del protocolo: `CREATE_ORDER`, `GET_ORDER` y `READY_ORDER`.
 La cocina conserva `PREPARING` / `READY` en memoria y evita registrar dos veces
 el mismo ID. Un ID repetido con diferente producto o cantidad se rechaza.
 
-## Alternativas evaluadas (completar con decisión propia del grupo)
+## Alternativas consideradas
 
 - REST interno: sencillo, pero no demostraría un mecanismo adicional diferente.
 - gRPC interno: validación de mensajes estructurada, pero se utilizará en caja.
@@ -64,6 +64,6 @@ coordinar con el equipo si se restringe para la entrega.
 - `src/main.py`: despacho al finalizar el pago y acciones de cocina.
 - `tests/test_kitchen_tcp.py`: casos automatizados.
 
-**Pendiente de decisión del grupo:** vía de publicación de eventos `READY` hacia
-WebSockets, manejo ante reinicios de cocina, validación final de alternativas y
-aprobación del ADR en el formato acordado para la Práctica 01.
+La publicación de `READY` está integrada: después de confirmar `READY_ORDER` por TCP,
+FastAPI guarda el estado y activa las notificaciones WebSocket mediante un evento
+local. Reiniciar cocina pierde los pedidos; no se implementa recuperación persistente.

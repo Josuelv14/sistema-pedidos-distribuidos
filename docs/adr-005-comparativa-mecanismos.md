@@ -1,6 +1,6 @@
 # ADR-005: Selección de mecanismos de comunicación
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado
 - **Fecha:** [2026-11-16]
 - **Decisores:** Equipo del sistema de pedidos
 
@@ -10,7 +10,7 @@ Un pedido pasa por varias etapas. El estudiante lo registra, caja confirma
 el pago, cocina prepara el pedido y el estudiante recibe un aviso cuando puede
 retirarlo. Cada etapa tiene necesidades de comunicación distintas.
 
-## Decisión propuesta
+## Decisión
 
 | Tramo | Mecanismo | Motivo de la elección |
 | --- | --- | --- |
@@ -33,9 +33,9 @@ cambio con cocina por TCP, guarda `READY` y publica el aviso por WebSocket.
   requeriría definir el formato y los límites de cada mensaje. El ADR de caja
   eligió gRPC para definir las operaciones y sus mensajes en un contrato
   compartido.
-- **REST, gRPC o Kafka para cocina.** El borrador de cocina considera REST y
+- **REST, gRPC o Kafka para cocina.** El ADR de cocina considera REST y
   gRPC como opciones para la comunicación interna, y Kafka para desacoplar
-  servicios mediante eventos. La propuesta con TCP permite practicar el
+  servicios mediante eventos. La implementación con TCP permite practicar el
   encuadre de mensajes y el manejo de conexiones con la infraestructura local
   del proyecto.
 - **Consultas periódicas por REST para el aviso.** El estudiante podría

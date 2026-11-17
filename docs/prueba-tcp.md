@@ -61,12 +61,15 @@ cocina conservando `PAID` con reintento.
 
 *Figura 5. Respuesta del servidor TCP a una nueva conexión después de la desconexión.*
 
-## Resultado de verificación preliminar
+## Resultado de verificación automatizada
 
-En una reconstrucción local de los módulos publicados en `main`, nueve pruebas
-de este módulo pasaron con la respuesta de caja simulada en los casos de integración.
-**No equivale a la ejecución del repositorio completo del grupo.** Antes de
-entregar, ejecutar en el equipo local y sustituir las evidencias pendientes.
+El 16 de noviembre de 2026 se ejecutó el conjunto completo del repositorio con
+`python -m unittest discover -s tests -v`: las 15 pruebas pasaron, incluidas las
+nueve de cocina. Se corrigió la prueba de finalización para esperar la función
+asíncrona `mark_order_ready`. Las pruebas de integración de cocina simulan la
+respuesta de caja; este resultado no sustituye una demostración en vivo de los
+cuatro mecanismos. Los escenarios relacionados son el 3 y el 4 de
+[escenarios de calidad](escenarios-calidad.md).
 
 
 ## Interpretación de resultados

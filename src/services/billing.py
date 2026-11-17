@@ -24,6 +24,7 @@ class BillingService:
             raise ValueError("El total debe tener como máximo dos decimales")
 
         with self._lock:
+            # Control de pagos repetidos elaborado con asistencia de IA.
             previous = self._sales.get(order_id)
             if previous is not None:
                 if Decimal(previous["total"]) != amount:

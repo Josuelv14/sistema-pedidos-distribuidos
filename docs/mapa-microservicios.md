@@ -6,15 +6,15 @@ flowchart LR
     pedidos[Pedidos REST - puerto 8000]
     caja[Caja gRPC - puerto 50051]
     cocina[Cocina TCP - puerto 50052]
-    notificaciones[Notificaciones - pendiente]
+    notificaciones[Notificaciones dentro de FastAPI]
 
     estudiante -->|REST: HTTP / JSON| pedidos
     pedidos -->|gRPC: pago| caja
     caja -->|Confirmación de pago| pedidos
     pedidos -->|TCP: CREATE_ORDER / READY_ORDER| cocina
     cocina -->|TCP: PREPARING / READY| pedidos
-    pedidos -.->|Evento READY pendiente| notificaciones
-    notificaciones -.->|WebSockets pendiente| estudiante
+    pedidos -->|Evento local READY| notificaciones
+    notificaciones -->|WebSockets asíncrono| estudiante
 ```
 
 | Servicio | Responsabilidad | Implementación |
@@ -22,7 +22,7 @@ flowchart LR
 | Pedidos | Crear y consultar pedidos, evitar duplicados y actualizar estados | `src/main.py`, `src/services/orders.py` |
 | Caja y facturación | Simular pagos, emitir comprobantes internos y resumir ventas | `src/billing_server.py`, `src/services/billing.py` |
 | Cocina | Recibir pedidos pagados mediante Sockets TCP, gestionar su preparación, evitar duplicados y actualizar los estados `PREPARING` y `READY` | `src/kitchen_server.py`, `src/services/kitchen_client.py` |
-| Notificaciones | Informar al estudiante mediante WebSockets cuando su pedido esté listo | Pendiente del integrante 4 |
+| Notificaciones | Informar al estudiante mediante WebSockets cuando su pedido esté listo | `src/services/order_notifications.py` y `/ws/orders/{order_id}` en `src/main.py` |
 
 Los servicios de pedidos, caja y cocina se ejecutan como procesos independientes y se comunican mediante mecanismos específicos.
 
@@ -38,8 +38,8 @@ El servidor de cocina escucha en `127.0.0.1:50052` y procesa solicitudes utiliza
 | Pedidos a caja | gRPC unario | Síncrona: pedidos solicita el procesamiento del pago y espera la respuesta de caja, con un tiempo máximo de espera de dos segundos. Implementada. |
 | Pedidos a cocina | Sockets TCP | Síncrona: pedidos envía mensajes JSON mediante TCP y espera una respuesta de cocina, con un timeout de dos segundos. Implementada por el integrante 3. |
 | Cocina a pedidos | Sockets TCP | Síncrona: cocina responde a las solicitudes indicando estados como `PREPARING` y `READY`, o errores de procesamiento. Implementada. |
-| Pedidos a notificaciones | Por definir | La publicación del evento `READY` hacia el servicio de notificaciones está pendiente de integración. |
-| Notificaciones al estudiante | WebSockets | Asíncrona en el diseño: permitirá informar al estudiante cuando su pedido esté listo. Pendiente del integrante 4. |
+| Pedidos a notificaciones | Llamada local y asyncio.Event | Implementada dentro de FastAPI; activa el envío asíncrono cuando se guarda `READY`. |
+| Notificaciones al estudiante | WebSockets | Asíncrona en el diseño: permitirá informar al estudiante cuando su pedido esté listo. `src/services/order_notifications.py` y `/ws/orders/{order_id}` en `src/main.py`. |
 
 Los Sockets TCP permiten establecer una comunicación directa entre pedidos y cocina mediante conexiones de red. En esta implementación se utiliza un modelo síncrono de petición y respuesta.
 
@@ -47,7 +47,7 @@ El servidor TCP admite las operaciones `CREATE_ORDER`, `GET_ORDER` y `READY_ORDE
 
 Para mejorar la confiabilidad, cocina identifica los pedidos por su ID. Si recibe nuevamente un pedido con el mismo identificador y contenido, evita duplicarlo. Si el identificador ya existe con información diferente, rechaza la solicitud.
 
-Las flechas continuas del diagrama representan comunicaciones implementadas, mientras que las flechas punteadas indican integraciones pendientes.
+Las flechas del diagrama representan comunicaciones implementadas. Notificaciones es un componente del proceso FastAPI, no un servidor independiente.
 
 ## Flujo implementado
 
@@ -67,7 +67,7 @@ Las flechas continuas del diagrama representan comunicaciones implementadas, mie
 
 8. Si cocina no está disponible después de confirmar el pago, REST devuelve un error `503`, pero conserva el pedido en `PAID`. Cuando cocina vuelve a estar disponible, puede utilizarse `POST /orders/{order_id}/dispatch` para reenviar el pedido sin realizar un segundo cobro.
 
-9. Cuando un pedido alcanza el estado `READY`, queda disponible para su futura notificación al estudiante mediante WebSockets, integración correspondiente al integrante 4.
+9. Cuando un pedido alcanza el estado `READY`, FastAPI activa el evento local y envía `order_ready` a los estudiantes conectados por WebSockets. Al reconectar se recibe `order_status` con el estado actual.
 
 ## Estado actual de la implementación
 
@@ -82,6 +82,6 @@ Se incorporaron los siguientes componentes:
 
 En la ejecución realizada, las nueve pruebas específicas de cocina finalizaron correctamente.
 
-La integración con WebSockets permanece pendiente y deberá coordinarse con el integrante 4 para permitir que los estudiantes reciban notificaciones cuando sus pedidos estén listos.
+La integración con WebSockets está implementada en FastAPI. La ruta `/ws/orders/{order_id}` permite recibir el aviso y recuperar el estado actual al reconectar.
 
 Como limitación actual, los datos se mantienen en memoria y pueden perderse al reiniciar los servicios. Además, el cambio manual de estado mediante `PATCH /orders/{order_id}/status` puede omitir la comunicación con cocina, por lo que se recomienda utilizar el endpoint específico `POST /orders/{order_id}/ready` para demostrar el flujo integrado.
