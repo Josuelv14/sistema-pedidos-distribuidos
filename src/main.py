@@ -52,6 +52,7 @@ def pay_order(order: Order) -> Order:
     if order.status == OrderStatus.PENDING:
         try:
             payment = billing_client.process_payment(order.id, format(order.total, ".2f"))
+        # Manejo de errores gRPC elaborado con asistencia de IA.
         except grpc.RpcError as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
