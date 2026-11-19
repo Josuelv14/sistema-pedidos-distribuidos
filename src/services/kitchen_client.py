@@ -1,6 +1,4 @@
 """Cliente del protocolo JSON/TCP de cocina.
-
-Codigo asistido por IA: registrar su uso en la bitacora del proyecto.
 """
 
 import json
